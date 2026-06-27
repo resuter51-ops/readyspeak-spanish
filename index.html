@@ -715,20 +715,31 @@ function renderPhrases() {
 }
 
 function speakPhraseText(text, lang) {
-  if (!window.speechSynthesis) return;
+  if (!window.speechSynthesis) { alert('Text-to-speech not supported on this device.'); return; }
   window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = lang;
-  utter.rate = 0.85;
-  const voices = window.speechSynthesis.getVoices();
-  const match = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.substring(0,2)));
-  if (match) utter.voice = match;
-  utter.onstart = () => {
-    document.getElementById('speakingText').textContent = text;
-    document.getElementById('nowSpeaking').classList.add('show');
-  };
-  utter.onend = () => document.getElementById('nowSpeaking').classList.remove('show');
-  window.speechSynthesis.speak(utter);
+  setTimeout(() => {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    utter.rate = 0.85;
+    utter.volume = 1;
+    const trySpeak = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const match = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.substring(0,2)));
+      if (match) utter.voice = match;
+      utter.onstart = () => {
+        document.getElementById('speakingText').textContent = text;
+        document.getElementById('nowSpeaking').classList.add('show');
+      };
+      utter.onend = () => document.getElementById('nowSpeaking').classList.remove('show');
+      utter.onerror = (e) => { console.warn('TTS error:', e.error); document.getElementById('nowSpeaking').classList.remove('show'); };
+      window.speechSynthesis.speak(utter);
+    };
+    if (window.speechSynthesis.getVoices().length > 0) {
+      trySpeak();
+    } else {
+      window.speechSynthesis.onvoiceschanged = trySpeak;
+    }
+  }, 50);
 }
 
 function openAddModal() {
