@@ -715,7 +715,36 @@ function renderPhrases() {
 }
 
 function speakPhraseText(text, lang) {
-  if (!window.speechSynthesis) { alert('Text-to-speech not supported on this device.'); return; }
+  if (!window.speechSynthesis) return;
+  // Android Chrome fix: cancel any stuck speech, then wait before speaking
+  window.speechSynthesis.cancel();
+  setTimeout(() => {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    utter.rate = 0.85;
+    utter.volume = 1.0;
+    utter.pitch = 1.0;
+    const voices = window.speechSynthesis.getVoices();
+    const match = voices.find(v => v.lang === lang) ||
+                  voices.find(v => v.lang.startsWith(lang.substring(0, 2))) ||
+                  voices.find(v => v.default);
+    if (match) utter.voice = match;
+    utter.onstart = () => {
+      document.getElementById('speakingText').textContent = text;
+      document.getElementById('nowSpeaking').classList.add('show');
+    };
+    utter.onend = () => document.getElementById('nowSpeaking').classList.remove('show');
+    utter.onerror = () => document.getElementById('nowSpeaking').classList.remove('show');
+    // Android keepalive hack: pause/resume every 10s to prevent silent cutoff
+    const resumeHack = setInterval(() => {
+      if (!window.speechSynthesis.speaking) { clearInterval(resumeHack); return; }
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }, 10000);
+    utter.onend = () => { clearInterval(resumeHack); document.getElementById('nowSpeaking').classList.remove('show'); };
+    window.speechSynthesis.speak(utter);
+  }, 150);
+}
   window.speechSynthesis.cancel();
   setTimeout(() => {
     const utter = new SpeechSynthesisUtterance(text);
